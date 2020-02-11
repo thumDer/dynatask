@@ -2,3 +2,4 @@ config.py
 __pycache__
 dynalist_cred.json
 token.pickle
+.vscode
