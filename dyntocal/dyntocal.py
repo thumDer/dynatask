@@ -3,6 +3,7 @@ import requests
 import helper
 import config
 import logging
+import googlecal
 
 fileURL = config.file_url
 docURL = config.doc_url
@@ -53,6 +54,8 @@ def run():
 
     logging.info(f"Found {len(calObjs)} events.")
 
+    googlecal.pushtogoogle(calObjs)
+
 
 def process_content(content, fileName, fileId, id):
     if "!(" in content:
@@ -70,12 +73,19 @@ def process_content(content, fileName, fileId, id):
         try:
             date_obj = datetime.datetime.strptime(
                 date, '%Y-%m-%d')
+            allday = True
         except Exception:
             date_obj = datetime.datetime.strptime(
                 date, '%Y-%m-%d %H:%M')
+            allday = False
 
-        url = "Document: {}\nhttps://dynalist.io/d/{}#z={}".format(
-            fileName, fileId, id)
+        url = "https://dynalist.io/d/{}#z={}".format(fileId, id)
+
+        ancestors = "Source: {}\n\n".format(fileName)
+        children = ""
+        note = ""
+
+        description = note + ancestors + children + url
 
         if "#alarm" in name:
             alarm = name.split("#alarm")[1]
@@ -87,7 +97,7 @@ def process_content(content, fileName, fileId, id):
         logging.debug("Name: {}, Date: {}, Alarm: {}".format(
             name, date_obj, alarm))
 
-        co = helper.CalObj(name, date_obj, url, alarm)
+        co = helper.CalObj(name, date_obj, allday, description, alarm)
 
         return co
     else:
