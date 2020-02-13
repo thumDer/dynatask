@@ -70,11 +70,11 @@ def process_content(content, fileName, fileId, id):
         else:
             name = content1
 
-        try:
+        if len(date) == 10:
             date_obj = datetime.datetime.strptime(
                 date, '%Y-%m-%d')
             allday = True
-        except Exception:
+        else:
             date_obj = datetime.datetime.strptime(
                 date, '%Y-%m-%d %H:%M')
             allday = False
