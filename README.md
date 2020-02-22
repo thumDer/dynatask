@@ -1,3 +1,3 @@
 # DynalistToCalendar
 
-Sending data from Dynalist to some calendars via API
+Fetching data from Dynalist, filtering, and pushing/syncing to different Calendars and Tasklists.
