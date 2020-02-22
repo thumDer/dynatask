@@ -21,6 +21,7 @@ def pushtogoogle(dynEvents):
     tokenPath = os.path.join(os.path.dirname(__file__), 'token.pickle')
     logging.debug("Token Path: {}".format(tokenPath))
     if os.path.exists(tokenPath):
+        logging.debug("Token Path exists.")
         with open(tokenPath, 'rb') as token:
             creds = pickle.load(token)
     # If there are no (valid) credentials available, let the user log in.
@@ -34,7 +35,8 @@ def pushtogoogle(dynEvents):
                 'dynalist_cred.json', SCOPES)
             creds = flow.run_local_server(port=0)
         # Save the credentials for the next run
-        with open('token.pickle', 'wb') as token:
+        # with open('token.pickle', 'wb') as token:
+        with open(tokenPath, 'wb') as token:
             pickle.dump(creds, token)
             logging.debug("Token saved.")
 
@@ -75,9 +77,9 @@ def pushtogoogle(dynEvents):
                 endDate = startDate
             else:
                 dateKey = 'dateTime'
-                startDate = n.date.strftime('%Y-%m-%dT%H:%M:%SZ')
+                startDate = n.date.strftime('%Y-%m-%dT%H:%M:%S+01:00')
                 endDate = (n.date + datetime.timedelta(minutes=60)).strftime(
-                    '%Y-%m-%dT%H:%M:%SZ')
+                    '%Y-%m-%dT%H:%M:%S+01:00')
 
             if n.alarm == "":
                 reminder = ""
