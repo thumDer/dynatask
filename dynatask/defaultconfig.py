@@ -12,7 +12,7 @@ config['dynalist'] = {'file_url': 'https://dynalist.io/api/v1/file/list',
                       'alarm_prefix': '#alarm'}
 
 config['google'] = {'task_url': '',
-                    'calendar_url': '',}
+                    'calendar_url': ''}
 
 config['caldav'] = {'task_url': '',
                     'calendar_url': '',

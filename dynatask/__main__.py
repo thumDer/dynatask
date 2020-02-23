@@ -25,7 +25,7 @@ if __name__ == '__main__':
     logging.info('Started')
     print("Started")
 
-    # dynatask.run()
+    dynatask.run()
 
     logging.info('Finished')
     print("Finished")
