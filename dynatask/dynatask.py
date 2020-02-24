@@ -15,9 +15,12 @@ config.read(configPath)
 fileURL = config['dynalist']['file_url']
 docURL = config['dynalist']['doc_url']
 key = config['dynalist']['api_key']
+tasklistTag = config['dynalist']['tasklist_tag']
+taskTag = config['dynalist']['task_tag']
+alarmTag = config['dynalist']['alarm_prefix']
 
 
-def fetchdata():
+def FetchData():
 
     data = {'files': []}
 
@@ -59,16 +62,124 @@ def fetchdata():
         if 'children' in node:
             childrenIds = node['children']
             for childId in childrenIds:
-                childNode = next(node for node in flatData
-                                 if node['id'] == childId)
+                childNode = nodebyid(flatData, childId)
                 childNode['parentid'] = node['id']
 
     with open('./data/dynalist_flattened.json',
               'w', encoding='utf-8') as write_file:
         json.dump(flatData, write_file, ensure_ascii=False, indent=4)
 
+    return(flatData)
 
-# fetchdata()
+
+def FilterData(nodes):
+
+    filteredData = []
+    for node in nodes:
+        try:
+            parentNode = nodebyid(nodes, node['parentid'])
+        except Exception:
+            continue
+        isTask = False
+        if '!(' in node['content'] or '!(' in node['note']:
+            isTask = True
+        if taskTag in node['content']:
+            isTask = True
+        if tasklistTag in parentNode['content']:
+            isTask = True
+
+        url = "https://dynalist.io/d/{}#z={}".format(node['fileid'],
+                                                     node['id'])
+
+        path = ''
+        loopNode = node
+        while True:
+            parentId = loopNode['parentid']
+            if parentId == 'root':
+                break
+            parentNode = nodebyid(nodes, parentId)
+            parentName = parentNode['content']
+            loopNode = parentNode
+            path = parentName + ' > ' + path
+
+        children = ''
+        if 'children' in node:
+            for childId in node['children']:
+                child = nodebyid(nodes, childId)
+                if 'checked' in child and child['checked']:
+                    children += '[X] ' + child['content']
+                else:
+                    children += '[ ] ' + child['content']
+
+        dynalist_info = (
+            'URL:/n{} /n/nFile:/n{}/n/n'
+            'Path:/n{}/n/nChildren:/n{}'
+            .format(url, node['filename'], path, children))
+
+        node['dynalist_info'] = dynalist_info
+
+        if isTask:
+            filteredData.append(node)
+
+    with open('./data/dynalist_filtered.json',
+              'w', encoding='utf-8') as write_file:
+        json.dump(filteredData, write_file, ensure_ascii=False, indent=4)
+
+    return(filteredData)
+
+
+def ConvertData(nodes):
+    convertedData = []
+    for node in nodes:
+        obj = {}
+        if '!(' in node['content']:
+            due = node['content'].split('!(', 1)[1].split(')', 1)[0]
+            name = node['content'].replace(
+                ' !(' + due + ')', '').replace(' ' + taskTag, '').rstrip()
+
+            if len(due) == 10:
+                date = due
+                time = ''
+                # allday = True
+            else:
+                date = due[:10]
+                time = due[10:]
+                # allday = False
+
+            note = node['note']
+
+            obj['name'] = name
+            obj['note'] = note
+            obj['date'] = date
+            obj['time'] = time
+
+            if alarmTag in name:
+                alarm = name.split(alarmTag, 1)[1].split(' ')[0]
+                obj['alarm'] = alarm
+            else:
+                obj['alarm'] = ''
+
+            if 'checked' in node and node['checked']:
+                obj['checked'] = True
+            else:
+                obj['checked'] = False
+
+            dynalist_id = node['id']
+            dynalist_file_id = node['fileid']
+            # caldav_id = dynalist_id
+
+            obj['dynalist_id'] = dynalist_id
+            obj['parentid'] = node['parentid']
+            obj['dynalist_file_id'] = dynalist_file_id
+            obj['dynalist_info'] = node['dynalist_info']
+
+            convertedData.append(obj)
+
+        with open('./data/dynalist_converted.json',
+                  'w', encoding='utf-8') as write_file:
+            json.dump(convertedData, write_file, ensure_ascii=False, indent=4)
+
+    return(convertedData)
 
 
 def run():
@@ -185,3 +296,10 @@ def process_content(nodes, node, fileName, fileId):
 
 def contentbyid(json_object, id):
     return [obj for obj in json_object if obj['id'] == id][0]['content']
+
+
+def nodebyid(nodes, id):
+    return next(obj for obj in nodes if obj['id'] == id)
+
+
+ConvertData(FilterData(FetchData()))
