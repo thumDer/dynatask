@@ -1,36 +1,31 @@
 import configparser
-from os import path
 
 config = configparser.ConfigParser()
+defaultconfig = config
 configPath = './dynatask/config.ini'
 
-config['dynalist'] = {'file_url': 'https://dynalist.io/api/v1/file/list',
-                      'doc_url': 'https://dynalist.io/api/v1/doc/read',
-                      'api_key': '',
-                      'tasklist_tag': '#tlist',
-                      'task_tag': '#task',
-                      'alarm_prefix': '#alarm'}
+defaultconfig.read('./dynatask/defaultconfig.ini')
 
-config['google'] = {'task_url': '',
-                    'calendar_url': ''}
-
-config['caldav'] = {'task_url': '',
-                    'calendar_url': '',
-                    'user': '',
-                    'password': ''}
+config.read(configPath)
 
 
-def deploy():
+def checkgroup(group):
+    if group not in config:
+        config[group] = {}
+
+
+def checkitem(group, item, value):
+    if item not in config[group]:
+        config[group][item] = value
+
+
+for group in defaultconfig:
+    checkgroup(group)
+    for item in defaultconfig[group]:
+        value = defaultconfig[group][item]
+        checkitem(group, item, value)
+
+
+def updateconfig():
     with open(configPath, 'w') as configfile:
         config.write(configfile)
-
-
-if __name__ == '__main__':
-    if not path.exists(configPath):
-        deploy()
-        print('Config file created at {}'.format(configPath))
-    else:
-        print(
-            'Found existing config file at {}, '
-            'please remove it before deploying a new one.'
-            .format(configPath))

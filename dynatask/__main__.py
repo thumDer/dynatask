@@ -1,5 +1,7 @@
-import dynatask
-from defaultconfig import configPath
+import dynalistconnector
+import caldavconnector
+import cache
+from defaultconfig import configPath, updateconfig
 import logging
 from os import path
 
@@ -13,19 +15,30 @@ if __name__ == '__main__':
     root_logger.addHandler(handler)
 
     if not path.exists(configPath):
+        updateconfig()
         configError = (
-            'Config file not found, please run'
-            ' ./dynatask/defaultconfig.py to'
-            ' deploy it, and fill the default settings manually'
-            ' as per the documentation.'.format(configPath))
+            'Deployed default config to {}, '
+            'please fill in user data.'.format(configPath))
         print(configError)
         logging.error(configError)
         exit()
 
+    updateconfig()
+
     logging.info('Started')
     print("Started")
 
-    dynatask.run()
+    dynalistData = dynalistconnector.pull()
+
+    caldavData = caldavconnector.pull()
+
+    cache.comparecaldav(caldavData)
+
+    results = cache.comparedynalist(dynalistData)
+
+    caldavconnector.push(results)
+
+    cache.updatetimestamp()
 
     logging.info('Finished')
     print("Finished")
