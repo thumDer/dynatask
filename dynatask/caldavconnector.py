@@ -1,12 +1,11 @@
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 import caldav
-from caldav.elements import dav, cdav
-from icalendar import Calendar, Event, Todo, Alarm
+from icalendar import Calendar, Todo, Alarm
 import configparser
 import pytz
-import json
-from helper import saveJSON, loadJSON, nodebykey
-from cache import timestamp
+from helper import saveJSON, nodebykey
+from cache import getsyncstamp
+import logging
 
 config = configparser.ConfigParser()
 
@@ -17,10 +16,6 @@ user = config['caldav']['user']
 password = config['caldav']['password']
 
 server_url = url.split('.php')[0]+('.php')
-
-# with open('./data/dynalist_converted.json',
-#           'r', encoding='utf-8') as read_file:
-#     data = json.load(read_file)
 
 
 def TodoFromJSON(cal, data):
@@ -110,15 +105,15 @@ def JSONFromTodo(data):
         if 'dtstamp' in todo:
             obj['caldav_dtstamp'] = int(todo['dtstamp'].dt.
                                         replace(tzinfo=timezone.utc).
-                                        timestamp()*1000)
+                                        timestamp())
         if 'created' in todo:
             obj['caldav_created'] = int(todo['created'].dt.
                                         replace(tzinfo=timezone.utc).
-                                        timestamp()*1000)
+                                        timestamp())
         if 'last-modified' in todo:
             obj['caldav_modified'] = int(todo['last-modified'].dt.
                                          replace(tzinfo=timezone.utc).
-                                         timestamp()*1000)
+                                         timestamp())
         array.append(obj)
     return(array)
 
@@ -141,12 +136,17 @@ def pull():
                 for todo in cal.walk('vtodo'):
                     todos.append(todo)
     data = JSONFromTodo(todos)
-    saveJSON('./data/pulltodos.json', data)
+    saveJSON('./data/caldav_data.json', data)
+    logging.info(f'Items pulled from caldav: {len(data)}')
+    for i in data:
+        logging.debug('Caldav item: {}'.format(i['name']))
     return(data)
 
 
 def push(data):
-    lastsync = timestamp()
+    delItems = 0
+    newItems = 0
+    lastsync = getsyncstamp()
     calendars = getcalendars()
 
     for caldavcal in calendars:
@@ -160,15 +160,16 @@ def push(data):
                 except Exception:
                     obj = None
                 if obj is None:
-                    print('Deleting: {}'.format(caldavtodo))
                     caldavtodo.delete()
+                    delItems += 1
 
             for i in data:
-                # print('{} > {}'.format(i['cache_modified'], lastsync))
                 if i['cache_modified'] > lastsync:
                     todoIcal = TodoFromJSON(None, i).to_ical()
-                    todo = caldavcal.add_todo(todoIcal)
-                    print('{} created / updated!'.format(todo))
+                    caldavcal.add_todo(todoIcal)
+                    newItems += 1
+    logging.info('Caldav actions: New/Modified: {}, '
+                 'Deleted: {}'.format(newItems, delItems))
 
 
 if __name__ == '__main__':

@@ -8,7 +8,7 @@ from os import path
 
 if __name__ == '__main__':
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.DEBUG)
+    root_logger.setLevel(logging.INFO)
     handler = logging.FileHandler('dynatask.log', 'w', 'utf-8')
     handler.setFormatter(logging.Formatter(
         '%(asctime)s %(levelname)s %(message)s'))

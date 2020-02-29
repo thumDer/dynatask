@@ -1,10 +1,8 @@
-import datetime
 import requests
 import logging
-import json
 import configparser
 from defaultconfig import configPath
-from helper import nodebykey
+from helper import nodebykey, saveJSON
 
 config = configparser.ConfigParser()
 config.read(configPath)
@@ -44,8 +42,7 @@ def FetchData():
 
             data['files'].append(fObj)
 
-    with open('./data/dynalist.json', 'w', encoding='utf-8') as write_file:
-        json.dump(data, write_file, ensure_ascii=False, indent=4)
+    saveJSON('./data/dynalist_data_raw.json', data)
 
     flatData = []
     for i in data['files']:
@@ -63,9 +60,7 @@ def FetchData():
                 childNode = nodebykey(flatData, 'id', childId)
                 childNode['parentid'] = node['id']
 
-    with open('./data/dynalist_flattened.json',
-              'w', encoding='utf-8') as write_file:
-        json.dump(flatData, write_file, ensure_ascii=False, indent=4)
+    saveJSON('./data/dynalist_data_flattened.json', flatData)
 
     return(flatData)
 
@@ -116,9 +111,7 @@ def FilterData(nodes):
         if isTask:
             filteredData.append(node)
 
-    with open('./data/dynalist_filtered.json',
-              'w', encoding='utf-8') as write_file:
-        json.dump(filteredData, write_file, ensure_ascii=False, indent=4)
+    saveJSON('./data/dynalist_data_filtered.json', filteredData)
 
     return(filteredData)
 
@@ -187,17 +180,23 @@ def ConvertData(nodes):
         obj['dynalist_parent_id'] = node['parentid']
         obj['dynalist_file_id'] = dynalist_file_id
         obj['dynalist_info'] = node['dynalist_info']
-        obj['dynalist_created'] = node['created']
-        obj['dynalist_modified'] = node['modified']
+        obj['dynalist_created'] = int(node['created']/1000)
+        obj['dynalist_modified'] = int(node['modified']/1000)
 
         convertedData.append(obj)
 
-        with open('./data/dynalist_converted.json',
-                  'w', encoding='utf-8') as write_file:
-            json.dump(convertedData, write_file, ensure_ascii=False, indent=4)
+        saveJSON('./data/dynalist_data_converted.json', convertedData)
 
     return(convertedData)
 
 
 def pull():
-    return(ConvertData(FilterData(FetchData())))
+    data = ConvertData(FilterData(FetchData()))
+    logging.info(f'Items pulled from dynalist: {len(data)}')
+    for i in data:
+        logging.debug('Dynalist item: {}'.format(i['name']))
+    return(data)
+
+
+if __name__ == '__main__':
+    pull()
