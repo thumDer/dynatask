@@ -174,12 +174,10 @@ def ConvertData(nodes):
             '{}\n{}\n\n{}'
             .format(node['path'], url, node['children']))
 
-        node['dynalist_info'] = dynalist_info
-
         obj['dynalist_id'] = dynalist_id
         obj['dynalist_parent_id'] = node['parentid']
         obj['dynalist_file_id'] = dynalist_file_id
-        obj['dynalist_info'] = node['dynalist_info']
+        obj['dynalist_info'] = dynalist_info
         obj['dynalist_created'] = int(node['created']/1000)
         obj['dynalist_modified'] = int(node['modified']/1000)
 
@@ -192,7 +190,7 @@ def ConvertData(nodes):
 
 def pull():
     data = ConvertData(FilterData(FetchData()))
-    logging.info(f'Items pulled from dynalist: {len(data)}')
+    logging.info('Items pulled from dynalist: {}'.format(len(data)))
     for i in data:
         logging.debug('Dynalist item: {}'.format(i['name']))
     return(data)

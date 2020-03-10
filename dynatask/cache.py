@@ -94,20 +94,25 @@ def comparecaldav(data):
             cache['data'].append(node)
             newItems += 1
         else:
-            try:
+            if 'dynalist_id' in node:
                 cachednode = nodebykey(
                     cache['data'],
                     'dynalist_id',
                     node['dynalist_id'])
-            except Exception as e:
-                logging.error(
-                    'Item: {}, Exception: {}'.format(node['name'], e))
-                try:
-                    cachednode = nodebykey(
-                        cache['data'],
-                        'caldav_uid',
-                        node['caldav_uid'])
-                    if node['caldav_modified'] > cache['synced'] \
+            elif 'caldav_uid' in node:
+                cachednode = nodebykey(
+                    cache['data'],
+                    'caldav_uid',
+                    node['caldav_uid'])
+            if cachednode is not None:
+                if 'caldav_modified' in node:
+                    modkey = 'caldav_modified'
+                elif 'caldav_dtstamp' in node:
+                    modkey = 'caldav_dtstamp'
+                else:
+                    modkey = ''
+                if modkey != '':
+                    if node[modkey] > cache['synced'] \
                             or 'caldav_uid' not in cachednode:
                         logging.debug('{} is modified, '
                                       'updating cache.'.format(node['name']))
@@ -115,9 +120,6 @@ def comparecaldav(data):
                             cachednode[key] = node[key]
                         cachednode['cache_modified'] = stamp()
                         modItems += 1
-                except Exception as e:
-                    logging.error(
-                        'Item: {}, Exception: {}'.format(node['name'], e))
 
     for uid in cacheduids:
         if uid not in uids:

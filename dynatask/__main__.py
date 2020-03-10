@@ -12,7 +12,10 @@ if __name__ == '__main__':
     handler = logging.FileHandler('dynatask.log', 'w', 'utf-8')
     handler.setFormatter(logging.Formatter(
         '%(asctime)s %(levelname)s %(message)s'))
+    console = logging.StreamHandler()
+    console.setLevel(logging.INFO)
     root_logger.addHandler(handler)
+    # root_logger.addHandler(console)
 
     if not path.exists(configPath):
         updateconfig()
@@ -26,7 +29,6 @@ if __name__ == '__main__':
     updateconfig()
 
     logging.info('Started')
-    print("Started")
 
     dynalistData = dynalistconnector.pull()
 
@@ -41,4 +43,3 @@ if __name__ == '__main__':
     cache.updatetimestamp()
 
     logging.info('Finished')
-    print("Finished")

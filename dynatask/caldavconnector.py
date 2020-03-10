@@ -15,15 +15,16 @@ url = config['caldav']['task_url']
 user = config['caldav']['user']
 password = config['caldav']['password']
 
-server_url = url.split('.php')[0]+('.php')
-
 
 def TodoFromJSON(cal, data):
     tz = pytz.timezone("Europe/Budapest")
-    try:
-        description = data['note']+data['dynalist_info']
-    except Exception:
-        description = ''
+    if 'dynalist_info' in data:
+        if data['note'] == '':
+            description = data['dynalist_info']
+        else:
+            description = data['note'] + '\n' + data['dynalist_info']
+    else:
+        description = data['note']
     duedate = data['date'].replace('-', '')
     time = data['time'].replace(':', '')
     if not duedate == '':
@@ -45,10 +46,10 @@ def TodoFromJSON(cal, data):
         elif 'caldav_uid' in data:
             todo.add('uid', data['caldav_uid'])
         todo.add('summary', data['name'])
-        created = datetime.now(pytz.utc)
-        todo.add('dtstamp', created)
-        todo.add('created', created)
-        todo.add('last-modified', created)
+        now = datetime.now(pytz.utc)
+        todo.add('dtstamp', now)
+        todo.add('created', now)
+        todo.add('last-modified', now)
         if not duedate == '':
             if not time == '':
                 todo.add('due', datetime(Y, m, D, H, M,
@@ -60,8 +61,11 @@ def TodoFromJSON(cal, data):
         if 'checked' in data:
             if data['checked']:
                 todo.add('status', 'COMPLETED')
+                todo.add('completed', datetime.now(pytz.utc))
+                todo.add('percent-complete', '100')
             else:
                 todo.add('status', 'NEEDS-ACTION')
+                todo.add('percent-complete', '0')
 
         if 'alarm' in data and not data['alarm'] == '':
             alarm = Alarm()
@@ -82,7 +86,10 @@ def JSONFromTodo(data):
         obj = {}
         obj['name'] = todo['summary']
         if 'description' in todo:
-            obj['note'] = todo['description'].split('----')[0]
+            note = todo['description'].split('----')[0]
+            if note.split('\n')[0] == '':
+                note = note[2:]
+            obj['note'] = note
         else:
             obj['note'] = ''
         obj['caldav_uid'] = todo['uid']
@@ -119,7 +126,7 @@ def JSONFromTodo(data):
 
 
 def getcalendars():
-    client = caldav.DAVClient(server_url, username=user, password=password)
+    client = caldav.DAVClient(url, username=user, password=password)
     principal = client.principal()
     calendars = principal.calendars()
     return(calendars)
@@ -137,7 +144,7 @@ def pull():
                     todos.append(todo)
     data = JSONFromTodo(todos)
     saveJSON('./data/caldav_data.json', data)
-    logging.info(f'Items pulled from caldav: {len(data)}')
+    logging.info('Items pulled from caldav: {}'.format(len(data)))
     for i in data:
         logging.debug('Caldav item: {}'.format(i['name']))
     return(data)

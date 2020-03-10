@@ -4,8 +4,13 @@ import pytz
 
 
 def nodebykey(nodes, key, value):
-    return next((obj for obj in nodes
-                 if key in obj and obj[key] == value), None)
+    result = None
+    for obj in nodes:
+        if key in obj:
+            if obj[key] == value:
+                result = obj
+                break
+    return(result)
 
 
 def saveJSON(filepath, data):
