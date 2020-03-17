@@ -36,9 +36,11 @@ if __name__ == '__main__':
 
     cache.comparecaldav(caldavData)
 
-    results = cache.comparedynalist(dynalistData)
+    cache.comparedynalist(dynalistData)
 
-    caldavconnector.push(results)
+    cache.checkparents()
+
+    caldavconnector.push(cache.loadcache())
 
     cache.updatetimestamp()
 

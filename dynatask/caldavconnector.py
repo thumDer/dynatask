@@ -4,7 +4,6 @@ from icalendar import Calendar, Todo, Alarm
 import configparser
 import pytz
 from helper import saveJSON, nodebykey
-from cache import getsyncstamp
 import logging
 
 config = configparser.ConfigParser()
@@ -41,7 +40,7 @@ def TodoFromJSON(cal, data):
         cal.add('version', '2.0')
         todo = Todo()
         if 'dynalist_id' in data:
-            todo.add('uid', data['dynalist_id']+'@dynatask')
+            todo.add('uid', data['caldav_uid'])
             todo.add('X-DYNATASK-DYNALISTID', data['dynalist_id'])
         elif 'caldav_uid' in data:
             todo.add('uid', data['caldav_uid'])
@@ -66,6 +65,9 @@ def TodoFromJSON(cal, data):
             else:
                 todo.add('status', 'NEEDS-ACTION')
                 todo.add('percent-complete', '0')
+
+        if 'caldav_parent' in data:
+            todo.add('related-to', data['caldav_parent'])
 
         if 'alarm' in data and not data['alarm'] == '':
             alarm = Alarm()
@@ -150,12 +152,12 @@ def pull():
     return(data)
 
 
-def push(data):
+def push(cache):
+    data = cache['data']
     delItems = 0
     newItems = 0
-    lastsync = getsyncstamp()
+    lastsync = cache['synced']
     calendars = getcalendars()
-
     for caldavcal in calendars:
         if caldavcal.canonical_url == url:
             for caldavtodo in caldavcal.todos(include_completed=True):

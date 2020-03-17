@@ -6,9 +6,10 @@ import logging
 cachepath = './data/cache.json'
 
 
-def savecache():
+def savecache(cache):
     with open(cachepath, 'w', encoding='utf-8') as create_file:
         json.dump(cache, create_file, ensure_ascii=False, indent=4)
+        logging.info('Cache saved, item count: {}'.format(len(cache['data'])))
 
 
 def loadcache():
@@ -19,12 +20,14 @@ def loadcache():
 
 
 if not path.exists(cachepath):
+    logging.info('No cache present, deploying...')
     cache = {}
     cache['synced'] = 0
     cache['data'] = []
 
-    savecache()
+    savecache(cache)
 else:
+    logging.info('Cache found, loading...')
     cache = loadcache()
 
 
@@ -40,6 +43,7 @@ def comparedynalist(data):
         logging.debug('Comparing {} from Dynalist'.format(node['name']))
         if node['dynalist_id'] not in cachedids:
             logging.debug('{} is new, adding to cache.'.format(node['name']))
+            node['caldav_uid'] = node['dynalist_id']+'@dynatask'
             node['cache_modified'] = stamp()
             cache['data'].append(node)
             newItems += 1
@@ -72,10 +76,9 @@ def comparedynalist(data):
             updatedcachedata.append(cachednode)
     cache['data'] = updatedcachedata
 
-    savecache()
     logging.info('Dynalist compare results: New: {}, Modified: {}, '
                  'Deleted: {}'.format(newItems, modItems, delItems))
-    return(cache['data'])
+    savecache(cache)
 
 
 def comparecaldav(data):
@@ -141,17 +144,46 @@ def comparecaldav(data):
     #         nodestodelete.append(cachednode)
     # cache['data'] = updatedcachedata
 
-    savecache()
     logging.info('Caldav compare results: New: {}, Modified: {}, '
                  'Deleted: {}'.format(newItems, modItems, delItems))
+    savecache(cache)
     return(cache['data'])
 
 
+def checkparents():
+    cache = loadcache()
+    updatedcachedata = []
+    count = 0
+    for node in cache['data']:
+        update = False
+        if 'dynalist_parent_id' not in node:
+            updatedcachedata.append(node)
+            continue
+        parentid = node['dynalist_parent_id']
+        parentnode = nodebykey(cache['data'], 'dynalist_id', parentid)
+        if parentnode is not None and 'caldav_uid' in parentnode:
+            if 'related-to' not in node:
+                update = True
+            elif node['related-to'] != parentnode['caldav_uid']:
+                update = True
+        if update:
+            node['caldav_parent'] = parentnode['caldav_uid']
+            logging.debug('Node {} is related to {}'.format(node['name'],
+                          node['caldav_parent']))
+            node['cache_modified'] = stamp()
+            count += 1
+        updatedcachedata.append(node)
+    cache['data'] = updatedcachedata
+
+    logging.info('Parent updated for {} elements.'.format(count))
+    savecache(cache)
+
+
 def updatetimestamp():
+    logging.info('Updating cache timestamp...')
     cache['synced'] = stamp()
-    savecache()
+    savecache(cache)
 
 
-def getsyncstamp():
-    loadcache()
-    return(cache['synced'])
+if __name__ == '__main__':
+    checkparents()
