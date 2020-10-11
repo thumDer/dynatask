@@ -1,9 +1,10 @@
-from modules import dynalistconnector
-from modules import caldavconnector
-from modules import cache
-from modules.defaultconfig import configPath, updateconfig
-import logging
 from os import path
+import logging
+
+from modules import dynalistconnector #pylint: disable=E0401
+from modules import caldavconnector #pylint: disable=E0401
+from modules import cache #pylint: disable=E0401
+from modules.defaultconfig import configPath, updateconfig #pylint: disable=E0401
 
 
 if __name__ == '__main__':
