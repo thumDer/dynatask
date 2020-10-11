@@ -6,7 +6,6 @@ from modules import caldavconnector #pylint: disable=E0401
 from modules import cache #pylint: disable=E0401
 from modules.defaultconfig import configPath, updateconfig #pylint: disable=E0401
 
-
 if __name__ == '__main__':
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
@@ -41,7 +40,10 @@ if __name__ == '__main__':
 
     cache.checkparents()
 
-    caldavconnector.push(cache.loadcache())
+    logging.info('Updating endpoints...')
+    cacheData = cache.loadcache()
+    caldavconnector.push(cacheData)
+    dynalistconnector.push(cacheData)
 
     cache.updatetimestamp()
 

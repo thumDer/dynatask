@@ -2,7 +2,7 @@ import requests
 import logging
 import configparser
 from .defaultconfig import configPath
-from .helper import nodebykey, saveJSON
+from .helper import nodebykey, saveJSON, loadJSON
 
 config = configparser.ConfigParser()
 config.read(configPath)
@@ -80,6 +80,8 @@ def FilterData(nodes):
             isTask = True
         if tasklistTag in parentNode['content']:
             isTask = True
+        if 'checkbox' in node and node['checkbox']:
+            isTask = True
         if excludeTag in node['content']:
             isTask = False
 
@@ -153,6 +155,8 @@ def ConvertData(nodes):
         obj['url'] = url
         obj['date'] = date
         obj['time'] = time
+        if 'checkbox' in node:
+            obj['checkbox'] = node['checkbox']
 
         if not alarmTag == '' and alarmTag in name:
             alarm = name.split(alarmTag, 1)[1].split(' ')[0]
@@ -190,10 +194,110 @@ def ConvertData(nodes):
 
 def pull():
     data = ConvertData(FilterData(FetchData()))
-    logging.info('Items pulled from dynalist: {}'.format(len(data)))
+    logging.info('Pulled {} items from Dynalist...'.format(len(data)))
     for i in data:
         logging.debug('Dynalist item: {}'.format(i['name']))
     return(data)
+
+
+def push(cache):
+    logging.info('Updating Dynalist...')
+    data = cache['data']
+    lastsync = cache['synced']
+    filteredData = []
+    for node in data:
+        cm = node['cache_modified']
+        if cm > lastsync:
+            logging.debug('Adding {} to update list.'.format(node['name']))
+            filteredData.append(node)
+
+    modFileList = []
+    for node in filteredData:
+        if 'dynalist_file_id' in node and node['dynalist_file_id'] not in modFileList:
+            modFileList.append(node['dynalist_file_id'])
+
+    dynalistData = loadJSON('./data/dynalist_data_converted.json')
+
+    requestlist = []
+    modCountList = []
+    for fileId in modFileList:
+        request = {}
+        request['token'] = key
+        request['file_id'] = fileId
+        request['changes'] = []
+
+        for cacheNode in filteredData:
+            if 'dynalist_file_id' in cacheNode and cacheNode['dynalist_file_id'] == fileId:
+                update = False
+                dynalistNode = nodebykey(
+                    dynalistData, 'dynalist_id', cacheNode['dynalist_id'])
+                logging.debug('Comparing [Cache] {} to [Dynalist] {}'.format(
+                    cacheNode['name'], dynalistNode['name']))
+                obj = {}
+                obj['action'] = 'edit'
+                obj['node_id'] = cacheNode['dynalist_id']
+                if cacheNode['note'] != dynalistNode['note']:
+                    obj['note'] = cacheNode['note']
+                    logging.debug(
+                        'Updating note to "{}"...'.format(obj['note']))
+                    update = True
+                if cacheNode['checked'] != dynalistNode['checked']:
+                    obj['checked'] = cacheNode['checked']
+                    logging.debug(
+                        'Updating checked state to {}...'.format(
+                            obj['checked']))
+                    update = True
+
+                if 'checkbox' not in dynalistNode or \
+                        not dynalistNode['checkbox']:
+                    obj['checkbox'] = True
+                    logging.debug(
+                        'Adding checkbox...')
+                    update = True
+
+                updateContent = False
+                if cacheNode['name'] != dynalistNode['name']:
+                    updateContent = True
+                if cacheNode['date'] != dynalistNode['date']:
+                    updateContent = True
+                if cacheNode['time'] != dynalistNode['time']:
+                    updateContent = True
+
+                if updateContent:
+                    name = cacheNode['name']
+                    date = cacheNode['date']
+                    time = cacheNode['time']
+                    if time != '':
+                        time = ' ' + time
+                    content = name
+                    if date != '':
+                        content += ' !({}{})'.format(date, time)
+
+                    obj['content'] = content
+                    logging.debug('Updating content to "{}"...'.format(
+                        obj['content']))
+                    update = True
+                if update:
+                    request['changes'].append(obj)
+                    logging.info('Updating "{}"...'.format(cacheNode['name']))
+                else:
+                    logging.debug('Nothing to update, skipping')
+        if len(request['changes']) > 0:
+            requestlist.append(request)
+            modCountList.append(len(request))
+
+    successCount = 0
+    for request, items in zip(requestlist, modCountList):
+        try:
+            logging.debug('Sending request: {}'.format(request))
+            r = requests.post(
+                'https://dynalist.io/api/v1/doc/edit', json=request)
+            logging.debug('Response: {}'.format(r.json()))
+            successCount += items
+        except Exception as e:
+            logging.error('Exception during Dynalist request: {}'.format(e))
+    logging.info(
+        'Succesfully modified {} items on Dynalist!'.format(successCount))
 
 
 if __name__ == '__main__':

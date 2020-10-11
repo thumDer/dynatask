@@ -88,9 +88,12 @@ def JSONFromTodo(data):
         obj = {}
         obj['name'] = todo['summary']
         if 'description' in todo:
-            note = todo['description'].split('----')[0]
-            if note.split('\n')[0] == '':
-                note = note[2:]
+            if '\n----' in todo['description']:
+                note = todo['description'].split('\n----')[0]
+            elif todo['description'].startswith('----'):
+                note = ''
+            else:
+                note = todo['description']
             obj['note'] = note
         else:
             obj['note'] = ''
@@ -129,57 +132,98 @@ def JSONFromTodo(data):
 
 def getcalendars():
     client = caldav.DAVClient(url, username=user, password=password)
-    principal = client.principal()
-    calendars = principal.calendars()
-    return(calendars)
+    # principal = client.principal()
+    # calendars = principal.calendars()
+    calendar = caldav.objects.Calendar(client=client, url=url)
+    # return(calendars)
+    return(calendar)
+
+
+calendar = getcalendars()
 
 
 def pull():
     todos = []
-    calendars = getcalendars()
 
-    for cal in calendars:
-        if cal.canonical_url == url:
-            for caldavtodo in cal.todos(include_completed=True):
-                cal = Calendar.from_ical(caldavtodo.data)
-                for todo in cal.walk('vtodo'):
-                    todos.append(todo)
+    for caldavTodo in calendar.todos(include_completed=True):
+        icalTodo = Calendar.from_ical(caldavTodo.data)
+        for todo in icalTodo.walk('vtodo'):
+            todos.append(todo)
+
+    # for cal in calendars:
+    #     if cal.canonical_url == url:
+    #         for caldavtodo in cal.todos(include_completed=True):
+    #             cal = Calendar.from_ical(caldavtodo.data)
+    #             for todo in cal.walk('vtodo'):
+    #                 todos.append(todo)
     data = JSONFromTodo(todos)
     saveJSON('./data/caldav_data.json', data)
-    logging.info('Items pulled from caldav: {}'.format(len(data)))
+    logging.info('Pulled {} items from CalDAV...'.format(len(data)))
     for i in data:
         logging.debug('Caldav item: {}'.format(i['name']))
     return(data)
 
 
 def push(cache):
+    logging.info('Updating CalDAV...')
     data = cache['data']
     delItems = 0
     newItems = 0
     lastsync = cache['synced']
-    calendars = getcalendars()
-    for caldavcal in calendars:
-        if caldavcal.canonical_url == url:
-            for caldavtodo in caldavcal.todos(include_completed=True):
-                cal = Calendar.from_ical(caldavtodo.data)
-                for component in cal.walk('vtodo'):
-                    uid = component['uid']
-                try:
-                    obj = nodebykey(data, 'caldav_uid', uid)
-                except Exception:
-                    obj = None
-                if obj is None:
-                    caldavtodo.delete()
-                    delItems += 1
 
-            for i in data:
-                if i['cache_modified'] > lastsync:
-                    todoIcal = TodoFromJSON(None, i).to_ical()
-                    caldavcal.add_todo(todoIcal)
-                    newItems += 1
-    logging.info('Caldav actions: New/Modified: {}, '
-                 'Deleted: {}'.format(newItems, delItems))
+    for caldavTodo in calendar.todos(include_completed=True):
+        icalTodo = Calendar.from_ical(caldavTodo.data)
+        for todo in icalTodo.walk('vtodo'):
+            uid = todo['uid']
+        try:
+            obj = nodebykey(data, 'caldav_uid', uid)
+        except Exception:
+            obj = None
+        if obj is None:
+            logging.debug('Deleting "{}"...'.format(caldavTodo))
+            caldavTodo.delete()
+            delItems += 1
+        elif obj['cache_modified'] > lastsync:
+            todo = TodoFromJSON(None, obj)
+            caldavTodo.data = todo.to_ical()
+
+    logging.info('Deleted {} items on CalDAV'.format(delItems))
+
+    for i in data:
+        if i['cache_modified'] > lastsync:
+            todo = TodoFromJSON(None, i)
+            todoIcal = todo.to_ical()
+            try:
+                logging.debug('Adding "{}"...'.format(todoIcal))
+                calendar.add_todo(todoIcal)
+                newItems += 1
+            except Exception as e:
+                logging.error('Error while adding {}: {}'.format(i['name'], e))
+    logging.info('Pushed {} items to CalDAV'.format(newItems))
+
+    # calendars = getcalendars()
+    # for caldavcal in calendars:
+    #     if caldavcal.canonical_url == url:
+    #         for caldavtodo in caldavcal.todos(include_completed=True):
+    #             cal = Calendar.from_ical(caldavtodo.data)
+    #             for component in cal.walk('vtodo'):
+    #                 uid = component['uid']
+    #             try:
+    #                 obj = nodebykey(data, 'caldav_uid', uid)
+    #             except Exception:
+    #                 obj = None
+    #             if obj is None:
+    #                 caldavtodo.delete()
+    #                 delItems += 1
+    #         logging.info('Deleted {} items on CalDAV'.format(delItems))
+
+    #         for i in data:
+    #             if i['cache_modified'] > lastsync:
+    #                 todoIcal = TodoFromJSON(None, i).to_ical()
+    #                 caldavcal.add_todo(todoIcal)
+    #                 newItems += 1
+    #         logging.info('Pushed {} items to CalDAV'.format(newItems))
 
 
 if __name__ == '__main__':
-    pull()
+    push()
