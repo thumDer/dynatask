@@ -1,5 +1,5 @@
 import json
-from helper import nodebykey, stamp
+from .helper import nodebykey, stamp
 from os import path
 import logging
 

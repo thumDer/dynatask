@@ -3,7 +3,7 @@ import caldav
 from icalendar import Calendar, Todo, Alarm
 import configparser
 import pytz
-from helper import saveJSON, nodebykey
+from .helper import saveJSON, nodebykey
 import logging
 
 config = configparser.ConfigParser()

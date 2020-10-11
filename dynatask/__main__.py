@@ -1,7 +1,7 @@
-import dynalistconnector
-import caldavconnector
-import cache
-from defaultconfig import configPath, updateconfig
+from modules import dynalistconnector
+from modules import caldavconnector
+from modules import cache
+from modules.defaultconfig import configPath, updateconfig
 import logging
 from os import path
 

@@ -1,8 +1,8 @@
 import requests
 import logging
 import configparser
-from defaultconfig import configPath
-from helper import nodebykey, saveJSON
+from .defaultconfig import configPath
+from .helper import nodebykey, saveJSON
 
 config = configparser.ConfigParser()
 config.read(configPath)
