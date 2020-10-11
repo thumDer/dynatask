@@ -3,8 +3,8 @@ import requests
 
 import logging
 import configparser
-from defaultconfig import configPath
-import googlecal
+from modules.defaultconfig import configPath #pylint: disable=E0401
+import googlecal #pylint: disable=E0401
 
 config = configparser.ConfigParser()
 config.read(configPath)
